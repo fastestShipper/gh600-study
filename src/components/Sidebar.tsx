@@ -24,10 +24,14 @@ const ITEMS: Item[] = [
   { id: 'progress', label: 'My progress', hint: 'What you have nailed', icon: '◆' },
 ]
 
+// Calendar days in local time, so the exam morning counts as the exam day.
 function daysUntilExam(): number {
   const exam = new Date(EXAM_DATE)
   const now = new Date()
-  return Math.ceil((exam.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  const examDay = new Date(exam.getFullYear(), exam.getMonth(), exam.getDate())
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  // round, not floor: a DST day is 23 or 25 hours long.
+  return Math.round((examDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 function formatExamDate(): string {
@@ -53,13 +57,17 @@ export default function Sidebar({ route, setRoute }: SidebarProps) {
       </div>
 
       <div className="card mt-6 p-3 px-4 flex items-center gap-3">
-        <div className="text-3xl font-display font-black text-accent leading-none">
-          {days > 0 ? days : 0}
-        </div>
+        {days > 0 && (
+          <div className="text-3xl font-display font-black text-accent leading-none">{days}</div>
+        )}
         <div className="text-xs">
-          <div className="text-ink font-medium">
-            {days > 0 ? 'days until exam' : days === 0 ? 'Exam day' : 'Exam past'}
-          </div>
+          {days > 0 ? (
+            <div className="text-ink font-medium">{days === 1 ? 'day' : 'days'} until exam</div>
+          ) : days === 0 ? (
+            <div className="text-accent font-medium">Exam today</div>
+          ) : (
+            <div className="text-ink-dim">Exam date passed</div>
+          )}
           <div className="text-ink-mute">{formatExamDate()}</div>
         </div>
       </div>
