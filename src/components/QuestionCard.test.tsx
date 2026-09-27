@@ -736,3 +736,50 @@ describe('navigation', () => {
     expect((btn('Next ▸') as HTMLButtonElement).disabled).toBe(true)
   })
 })
+
+describe('code in question text', () => {
+  const snippet: FlatQuestion = {
+    ...base,
+    id: 'q-code',
+    type: 'multiple_choice',
+    stem: 'Read this snippet:\n\n```yaml\nconcurrency:\n  group: ci\n  cancel-in-progress: true\n```\n\nWhat does `cancel-in-progress` do?',
+    options: ['A. Cancels `older` runs in the group', 'B. Nothing'],
+    correct: 'A',
+    explanation: 'It cancels the run in `group` that is still going.',
+  }
+  const codeIn = (el: HTMLElement) => [...el.querySelectorAll('code')].map((c) => c.textContent)
+
+  it('in practice, sets the snippet as indented code and inline code as code, with no backticks shown', async () => {
+    const user = userEvent.setup()
+    study(snippet)
+    const heading = screen.getByRole('heading')
+    expect(codeIn(heading)).toEqual(['concurrency:\n  group: ci\n  cancel-in-progress: true', 'cancel-in-progress'])
+    const option = screen.getByRole('button', { name: /Cancels older runs in the group/ })
+    expect(codeIn(option)).toEqual(['older'])
+    expect(screen.getByRole('article').textContent).not.toContain('`')
+
+    await user.click(option)
+    await user.click(btn('Check answer'))
+    const explanation = screen.getByText('Explanation').nextElementSibling as HTMLElement
+    expect(explanation.textContent).toBe('It cancels the run in group that is still going.')
+    expect(codeIn(explanation)).toEqual(['group'])
+  })
+
+  it('in a mock, renders the snippet the same way and still reveals nothing', () => {
+    render(<QuestionCard question={snippet} index={0} total={3} mode="mock" />)
+    expect(codeIn(screen.getByRole('heading'))[0]).toBe('concurrency:\n  group: ci\n  cancel-in-progress: true')
+    expect(screen.getByRole('article').textContent).not.toMatch(/`|Explanation/)
+  })
+
+  it('names match-pairs items and answers without the backticks their code is written with', async () => {
+    const user = userEvent.setup()
+    const [shiftTab, , cancel] = pairs.pairs!
+    study({ ...pairs, id: 'q-code-pairs', pairs: [shiftTab, { left: '`/yolo`', right: 'Permit `everything`' }, cancel] })
+    await user.click(item('/yolo'))
+    await user.click(answer('Permit everything'))
+    expect(itemName('/yolo')).toBe('2. /yolo, matched with Permit everything')
+    expect(announced()).toContain('Matched 2. /yolo with Permit everything.')
+    expect(codeIn(itemCard('/yolo').getByText('/yolo').parentElement!)).toEqual(['/yolo'])
+    expect(screen.getByRole('article').textContent).not.toContain('`')
+  })
+})

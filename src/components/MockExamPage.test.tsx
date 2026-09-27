@@ -173,3 +173,28 @@ describe('mock exam: order the steps', () => {
     expect(screen.getByText(score)).toBeTruthy()
   })
 })
+
+describe('mock exam: results', () => {
+  it('reveals nothing while the mock runs, then reviews flagged and missed questions once submitted', async () => {
+    const user = userEvent.setup()
+    render(<SeededHarness questionIds={['d1-1.1-1', 'gpt-1']} />)
+    await user.click(card().getByRole('button', { name: '⚐ Flag' }))
+    expect(screen.getByRole('button', { name: 'Question 1, flagged' })).toBeTruthy()
+    await answerCurrent(user) // option A; the key is B
+    await user.click(card().getByRole('button', { name: 'Save and continue' }))
+    expect(screen.getByRole('button', { name: 'Question 1, answered, flagged' })).toBeTruthy()
+    expect(screen.getByText(/You flagged 1 to revisit\./)).toBeTruthy()
+    // Nothing is graded or explained while the mock runs.
+    expect(screen.queryByText(/Your answer|Correct answer|Explanation|✓ Correct|✕ Incorrect|Review answers/)).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Submit and see score' }))
+
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Score: 0 / 1000' }))
+    const review = within(screen.getByRole('region', { name: 'Review answers' }))
+    expect(review.getAllByRole('article')).toHaveLength(2) // both missed; gpt-1 was never answered
+    await user.click(review.getByRole('button', { name: 'Flagged (1)' }))
+    const flagged = review.getByRole('article', { name: 'Question 1' })
+    expect(within(flagged).getByText('⚑ Flagged')).toBeTruthy()
+    expect(within(flagged).getByText('✕ Incorrect')).toBeTruthy()
+  })
+})

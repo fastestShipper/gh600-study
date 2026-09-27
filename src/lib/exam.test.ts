@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Domain } from '../types'
-import { ALL_QUESTIONS, flattenQuestions, isCorrect, matchSelections } from './exam'
+import { ALL_QUESTIONS, DOMAINS, flattenQuestions, gradeMock, isCorrect, matchSelections, mockScore } from './exam'
 
 const SEP = ' -> '
 
@@ -46,6 +46,15 @@ describe('question bank', () => {
         // case_study parents carry no controls; their context is folded into each sub-question.
         throw new Error(`unanswerable question type in the bank: ${q.type}`)
     }
+  })
+})
+
+describe('question metadata', () => {
+  // Results group and label questions by these; one bank entry spelling a title differently shows twice.
+  it.each(ALL_QUESTIONS.map((q) => [q.id, q] as const))('%s names its domain and objective as the bank does', (_id, q) => {
+    const domain = DOMAINS.find((d) => d.domain_id === q.domainId)!
+    expect(q.domainTitle).toBe(domain.title)
+    expect(q.objectiveTitle).toBe(domain.objectives.find((o) => o.id === q.objectiveId)?.title)
   })
 })
 
@@ -116,5 +125,32 @@ describe('match pairs', () => {
     expect(matchSelections(' 1,0', 2)).toEqual([undefined, 0])
     expect(matchSelections('1.0,01', 2)).toEqual([undefined, undefined])
     expect(matchSelections('0,1,2,3,4', 4)).toEqual([undefined, undefined, undefined, undefined])
+  })
+})
+
+describe('gradeMock', () => {
+  it('grades each saved answer in mock order, numbering past ids no longer in the bank', () => {
+    const run = {
+      startedAt: 0,
+      finishedAt: 1,
+      // d4-4.3-59 is a case-study parent an older version saved; the mock skips it.
+      questionIds: ['d1-1.1-7', 'd4-4.3-59', 'd1-1.1-1', 'gpt-1'],
+      answers: { 'd1-1.1-7': '1,0,2,3', 'd1-1.1-1': 'B' },
+      flagged: { 'gpt-1': true as const },
+    }
+    const results = gradeMock(run)
+    expect(results.map((r) => [r.question.id, r.number, r.given, r.correct, r.flagged])).toEqual([
+      ['d1-1.1-7', 1, '1,0,2,3', false, false],
+      ['d1-1.1-1', 2, 'B', true, false],
+      ['gpt-1', 3, undefined, false, true], // unanswered counts as missed
+    ])
+    expect(mockScore(results)).toBe(333)
+  })
+
+  it('reads a run saved before mocks could be flagged', () => {
+    const results = gradeMock({ startedAt: 0, questionIds: ['d1-1.1-1'], answers: { 'd1-1.1-1': 'B' } })
+    expect(results.map((r) => [r.correct, r.flagged])).toEqual([[true, false]])
+    expect(mockScore(results)).toBe(1000)
+    expect(mockScore([])).toBe(0)
   })
 })

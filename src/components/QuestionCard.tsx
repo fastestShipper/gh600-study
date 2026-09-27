@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { FlatQuestion, MatchPair } from '../types'
 import { isCorrect, matchSelections, shuffle } from '../lib/exam'
+import { plainText } from '../lib/richText'
+import RichText from './RichText'
 import StepOrder from './StepOrder'
 
 interface QuestionCardProps {
@@ -178,7 +180,7 @@ export default function QuestionCard({
         tabIndex={-1}
         className="text-lg font-display text-ink leading-relaxed whitespace-pre-line mb-4 scroll-mt-28"
       >
-        {question.stem}
+        <RichText text={question.stem} />
       </h2>
 
       {/* Multiple choice & multi_select & case_study sub option list */}
@@ -219,7 +221,9 @@ export default function QuestionCard({
                   >
                     {usedLetter}
                   </div>
-                  <div className="text-sm text-ink-dim leading-relaxed">{opt.replace(/^[A-Z]\.\s*/, '')}</div>
+                  <div className="min-w-0 text-sm text-ink-dim leading-relaxed">
+                    <RichText text={opt.replace(/^[A-Z]\.\s*/, '')} />
+                  </div>
                 </button>
               </li>
             )
@@ -308,7 +312,7 @@ export default function QuestionCard({
             Explanation
           </div>
           <p className="text-sm text-ink-dim leading-relaxed whitespace-pre-line">
-            {question.explanation}
+            <RichText text={question.explanation} />
           </p>
         </div>
       )}
@@ -351,7 +355,8 @@ function MatchPairs({
   // The item the next answer goes to: the first unmatched one to start with.
   const [active, setActive] = useState(() => Math.max(0, picks.indexOf(undefined)))
   const [announcement, setAnnouncement] = useState('')
-  const itemName = (item: number) => `${item + 1}. ${pairs[item].left}`
+  const itemName = (item: number) => `${item + 1}. ${plainText(pairs[item].left)}`
+  const answerName = (choice: number) => plainText(pairs[choice].right)
 
   const choose = (choice: number) => {
     const next = [...picks]
@@ -365,17 +370,17 @@ function MatchPairs({
     } else {
       next[active] = choice
       if (owner === -1) {
-        message = `Matched ${itemName(active)} with ${pairs[choice].right}.`
+        message = `Matched ${itemName(active)} with ${answerName(choice)}.`
         // On to the next unmatched item, wrapping; stay put once every item is matched.
         const after = next.map((_, k) => (active + 1 + k) % next.length)
         target = after.find((item) => next[item] === undefined) ?? active
       } else {
         // Answers are used once: taking one from another item leaves that item to fill next.
         next[owner] = undefined
-        message = `Moved ${pairs[choice].right} from item ${owner + 1} to ${itemName(active)}. Item ${owner + 1} is now unmatched.`
+        message = `Moved ${answerName(choice)} from item ${owner + 1} to ${itemName(active)}. Item ${owner + 1} is now unmatched.`
         target = owner
       }
-      if (previous !== undefined) message += ` ${pairs[previous].right} is free again.`
+      if (previous !== undefined) message += ` ${answerName(previous)} is free again.`
       if (target !== active) message += ` Now choosing for ${itemName(target)}.`
     }
     setActive(target)
@@ -406,8 +411,8 @@ function MatchPairs({
                 : pick === undefined
                 ? 'border-dashed border-line-strong hover:border-accent/60'
                 : 'border-line hover:border-line-strong'
-              const state = pick === undefined ? 'not matched yet' : `matched with ${pairs[pick].right}`
-              const result = graded ? (hit ? ', correct' : `, incorrect, should be ${p.right}`) : ''
+              const state = pick === undefined ? 'not matched yet' : `matched with ${answerName(pick)}`
+              const result = graded ? (hit ? ', correct' : `, incorrect, should be ${answerName(item)}`) : ''
               return (
                 <label
                   key={p.left}
@@ -429,16 +434,27 @@ function MatchPairs({
                   <span aria-hidden className="flex gap-3">
                     <PairBadge filled={pick !== undefined}>{item + 1}</PairBadge>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-ink font-medium leading-snug">{p.left}</span>
+                      <span className="block text-ink font-medium leading-snug">
+                        <RichText text={p.left} />
+                      </span>
                       <span className={`block mt-1 leading-snug ${pick === undefined ? 'text-ink-mute' : 'text-ink-dim'}`}>
-                        {pick === undefined ? 'Not matched yet' : `→ ${pairs[pick].right}`}
+                        {pick === undefined ? (
+                          'Not matched yet'
+                        ) : (
+                          <>
+                            → <RichText text={pairs[pick].right} />
+                          </>
+                        )}
                       </span>
                       {graded &&
                         (hit ? (
                           <span className="block mt-1 text-xs text-good">✓ Matched correctly</span>
                         ) : (
                           <span className="block mt-1 text-xs text-ink-dim">
-                            <span className="text-bad">✕</span> Should be: <span className="text-good">{p.right}</span>
+                            <span className="text-bad">✕</span> Should be:{' '}
+                            <span className="text-good">
+                              <RichText text={p.right} />
+                            </span>
                           </span>
                         ))}
                     </span>
@@ -456,7 +472,7 @@ function MatchPairs({
             </div>
             {/* Stacked, the items can be off screen: name the target right above the answers. */}
             <p aria-hidden className="@xl:hidden -mt-1 mb-2 text-sm text-ink leading-snug">
-              {pairs[active].left}
+              <RichText text={pairs[active].left} />
             </p>
             <div className="space-y-2">
               {order.map((choice) => {
@@ -467,7 +483,7 @@ function MatchPairs({
                     key={choice}
                     type="button"
                     aria-pressed={selected}
-                    aria-label={owner === -1 ? pairs[choice].right : `${pairs[choice].right}, matched with item ${owner + 1}`}
+                    aria-label={owner === -1 ? answerName(choice) : `${answerName(choice)}, matched with item ${owner + 1}`}
                     // A double-click or a held Enter would otherwise pair the answer, then move it on to the
                     // next target: act on the first click (detail 0 from the keyboard, 1 from a pointer) only.
                     onClick={(e) => e.detail < 2 && choose(choice)}
@@ -477,7 +493,9 @@ function MatchPairs({
                     }`}
                   >
                     <PairBadge filled={owner !== -1}>{owner === -1 ? '' : owner + 1}</PairBadge>
-                    <span className="text-ink-dim leading-snug">{pairs[choice].right}</span>
+                    <span className="min-w-0 text-ink-dim leading-snug">
+                      <RichText text={pairs[choice].right} />
+                    </span>
                   </button>
                 )
               })}

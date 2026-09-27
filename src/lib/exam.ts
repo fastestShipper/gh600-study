@@ -1,6 +1,6 @@
 import dataRaw from '../data.json'
 import { EXTRA_QUESTIONS } from '../data/extra-questions'
-import type { DataShape, Domain, FlatQuestion, Question } from '../types'
+import type { DataShape, Domain, FlatQuestion, MockExamRun, Question } from '../types'
 
 export const data = dataRaw as unknown as DataShape
 
@@ -48,6 +48,8 @@ export function flattenQuestions(domains: Domain[] = DOMAINS): FlatQuestion[] {
 }
 
 export const ALL_QUESTIONS: FlatQuestion[] = [...flattenQuestions(), ...EXTRA_QUESTIONS]
+
+export const QUESTION_BY_ID = new Map(ALL_QUESTIONS.map((q) => [q.id, q]))
 
 export const QUESTIONS_BY_DOMAIN: Record<number, FlatQuestion[]> = ALL_QUESTIONS.reduce(
   (acc, q) => {
@@ -126,6 +128,36 @@ export function isCorrect(q: Question, given: string): boolean {
     return normalizeAnswer(given) === normalizeAnswer(q.correct)
   }
   return given.trim().toUpperCase() === (q.correct || '').trim().toUpperCase()
+}
+
+export interface MockResult {
+  question: FlatQuestion
+  number: number // 1-based position in the mock, as it was shown
+  given?: string
+  correct: boolean
+  flagged: boolean
+}
+
+// Each question of a mock with its saved answer and grade, in the order the mock showed them. Ids no
+// longer in the bank (case-study parents saved by older versions) are skipped, as the mock skips them.
+export function gradeMock(run: MockExamRun): MockResult[] {
+  const questions = run.questionIds.flatMap((id) => QUESTION_BY_ID.get(id) ?? [])
+  return questions.map((question, i) => {
+    const given = run.answers[question.id]
+    return {
+      question,
+      number: i + 1,
+      given,
+      correct: !!given && isCorrect(question, given),
+      flagged: !!run.flagged?.[question.id],
+    }
+  })
+}
+
+// Out of 1000, as the exam reports it; unanswered questions count as wrong.
+export function mockScore(results: MockResult[]): number {
+  if (!results.length) return 0
+  return Math.round((results.filter((r) => r.correct).length / results.length) * 1000)
 }
 
 export function questionLetterOptions(q: Question): string[] {

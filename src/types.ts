@@ -84,6 +84,8 @@ export interface MockExamRun {
   finishedAt?: number
   questionIds: string[]
   answers: Record<string, string>
+  // Questions marked to revisit during this mock; independent of Practice flags.
+  flagged?: Record<string, true>
   score?: number
   byDomain?: Record<number, { correct: number; total: number }>
 }
