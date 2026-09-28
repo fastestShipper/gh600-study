@@ -126,7 +126,7 @@ export const EXTRA_QUESTIONS: FlatQuestion[] = [
     domainId: 1,
     domainTitle: 'Prepare agent architecture and SDLC processes',
     objectiveId: '1.1',
-    objectiveTitle: 'Integrate agents into the SDLC',
+    objectiveTitle: 'Integrate agents into the software development lifecycle (SDLC)',
     type: 'multiple_choice',
     stem: 'Your team is integrating a Copilot custom agent that produces draft refactors. Reviewers complain that they cannot see what the agent INTENDED before code appears in the PR. Which configuration most directly addresses the complaint?',
     options: [

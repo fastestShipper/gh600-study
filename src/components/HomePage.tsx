@@ -1,5 +1,5 @@
 import type { Route } from '../App'
-import { DOMAINS, META } from '../lib/exam'
+import { ALL_QUESTIONS, DOMAINS, META } from '../lib/exam'
 import { EXAM_HEADER_LABEL } from '../config'
 
 interface HomePageProps {
@@ -73,11 +73,11 @@ export default function HomePage({ onGo }: HomePageProps) {
               className={`card card-hover p-4 text-left bg-gradient-to-br ${DOMAIN_COLORS[idx]}`}
             >
               <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-mono text-ink-mute">D{d.domain_id}</div>
+                <div className="text-xs font-mono text-ink-dim">D{d.domain_id}</div>
                 <div className="chip">{d.weight_pct}</div>
               </div>
               <div className="font-display text-ink font-medium leading-snug">{d.title}</div>
-              <div className="text-xs text-ink-mute mt-1">
+              <div className="text-xs text-ink-dim mt-1">
                 {d.objectives.length} objectives · {d.objectives.reduce(
                   (a, o) => a + (o.questions?.length ?? 0),
                   0,
@@ -104,7 +104,7 @@ export default function HomePage({ onGo }: HomePageProps) {
         />
         <ActionCard
           title="Drill questions"
-          desc="94 scenario questions with explanations. Filter by domain to reinforce weak spots."
+          desc={`${ALL_QUESTIONS.length} scenario questions with explanations. Filter by domain to reinforce weak spots.`}
           cta="Open practice ▸"
           onClick={() => onGo('practice')}
         />

@@ -2,7 +2,7 @@
 
 Free, open study app for the **GH-600 — GitHub Certified: Agentic AI Developer (beta)** exam.
 
-A self-contained single-page app you run locally to drill the six exam domains: cram plan, cheatsheet, 12 artifact labs, 94 practice questions, and a timed 50-question mock with per-domain scoring. Progress is stored in your browser's localStorage. No backend, no telemetry, no signup.
+A self-contained single-page app you run locally to drill the six exam domains: cram plan, cheatsheet, 12 artifact labs, 87 practice questions, and a timed 50-question mock with per-domain scoring. Progress is stored in your browser's localStorage. No backend, no telemetry, no signup.
 
 > **Unofficial.** Not affiliated with or endorsed by GitHub or Microsoft. Always cross-check against the [official study guide](https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/gh-600).
 
@@ -13,7 +13,7 @@ A self-contained single-page app you run locally to drill the six exam domains: 
 - **Dominios** — cheatsheet per domain: key concepts, vocabulary, common pitfalls, GitHub features that get tested.
 - **Cheatsheet** — 27 gotchas that consistently show up, glossary (searchable), critical file paths, CLI command reference, and a section on the exam's question style.
 - **Lab de artefactos** — 12 real-style snippets (YAML / JSON / logs / audit events) with a question, an explanation, and *why it matters* on the exam. This is the highest-yield section.
-- **Practica** — 94 scenario-based questions with full explanations. Filter by domain / by what you got wrong / by what you flagged.
+- **Practica** — 87 scenario-based questions with full explanations. Filter by domain / by what you got wrong / by what you flagged.
 - **Examen Mock** — 50 questions, 120-minute timer, weighted by the official domain percentages. Score plus per-domain breakdown so you know where to drill next.
 - **Mi progreso** — KPIs, per-domain bars, mock run history.
 

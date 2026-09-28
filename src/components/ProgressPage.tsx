@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { AppState } from '../types'
 import { ALL_QUESTIONS, DOMAINS, META, QUESTIONS_BY_DOMAIN } from '../lib/exam'
 import { resetState } from '../lib/storage'
+import RichText from './RichText'
 
 interface ProgressPageProps {
   state: AppState
@@ -117,7 +118,9 @@ export default function ProgressPage({ state, setState }: ProgressPageProps) {
                 <div className="text-[11px] font-mono text-ink-mute">
                   D{q.domainId} · {q.objectiveId}
                 </div>
-                <div className="text-ink leading-snug">{q.stem.split('\n')[0]}</div>
+                <div className="text-ink leading-snug">
+                  <RichText text={q.stem.split('\n')[0]} />
+                </div>
               </li>
             ))}
             {wrongQuestions.length > 20 && (

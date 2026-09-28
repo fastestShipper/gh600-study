@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AppState, MockExamRun } from '../types'
-import { ALL_QUESTIONS, buildMockSet, isCorrect, META } from '../lib/exam'
+import { buildMockSet, gradeMock, META, mockScore, QUESTION_BY_ID } from '../lib/exam'
+import MockResults from './MockResults'
 import QuestionCard from './QuestionCard'
 
 interface MockExamPageProps {
@@ -15,6 +16,8 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
   const active = state.activeMock
   const [idx, setIdx] = useState(0)
   const [now, setNow] = useState(Date.now())
+  // Set on submit, so the results take focus from the unmounted Submit button.
+  const [justSubmitted, setJustSubmitted] = useState(false)
 
   useEffect(() => {
     if (!active || active.finishedAt) return
@@ -24,8 +27,7 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
 
   const questions = useMemo(() => {
     if (!active) return []
-    const byId = new Map(ALL_QUESTIONS.map((q) => [q.id, q]))
-    return active.questionIds.map((id) => byId.get(id)!).filter(Boolean)
+    return active.questionIds.flatMap((id) => QUESTION_BY_ID.get(id) ?? [])
   }, [active])
 
   const startMock = () => {
@@ -36,6 +38,7 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
       answers: {},
     }
     setIdx(0)
+    setJustSubmitted(false)
     setState((prev) => ({ ...prev, activeMock: run }))
   }
 
@@ -57,25 +60,33 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
     })
   }
 
+  const toggleFlag = (qid: string) => {
+    setState((prev) => {
+      if (!prev.activeMock) return prev
+      const flagged = { ...prev.activeMock.flagged }
+      if (flagged[qid]) delete flagged[qid]
+      else flagged[qid] = true
+      return { ...prev, activeMock: { ...prev.activeMock, flagged } }
+    })
+  }
+
   const finishMock = () => {
     if (!active) return
-    let correct = 0
+    const results = gradeMock(active)
     const byDomain: Record<number, { correct: number; total: number }> = {}
-    for (const q of questions) {
-      const given = active.answers[q.id]
-      const c = given ? isCorrect(q, given) : false
-      if (c) correct += 1
+    for (const { question: q, correct: c } of results) {
       byDomain[q.domainId] = byDomain[q.domainId] ?? { correct: 0, total: 0 }
       byDomain[q.domainId].total += 1
       if (c) byDomain[q.domainId].correct += 1
     }
-    const score = Math.round((correct / questions.length) * 1000)
+    const score = mockScore(results)
     const finished: MockExamRun = {
       ...active,
       finishedAt: Date.now(),
       score,
       byDomain,
     }
+    setJustSubmitted(true)
     setState((prev) => ({
       ...prev,
       activeMock: undefined,
@@ -95,8 +106,8 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
           </h1>
           <p className="text-ink-dim mt-1 max-w-2xl">
             Per-domain weights identical to the real exam. Timed. No explanations until you submit.
-            When you finish you get the total score plus a per-domain breakdown so you know where
-            to drill next.
+            When you finish you get the total score, a per-domain breakdown so you know where to
+            drill next, and a review of every answer with its explanation.
           </p>
         </header>
 
@@ -117,47 +128,7 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
           </div>
         </div>
 
-        {lastRun?.score !== undefined && (
-          <div className="card p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-ink-mute font-mono">LATEST MOCK</div>
-                <div className="text-2xl font-display font-bold text-ink">
-                  Score: {lastRun.score} / 1000
-                </div>
-                <div className="text-xs text-ink-mute mt-0.5">
-                  {new Date(lastRun.finishedAt!).toLocaleString()}
-                </div>
-              </div>
-              <div
-                className={`chip ${
-                  (lastRun.score ?? 0) >= META.passing_score ? 'chip-good' : 'chip-bad'
-                }`}
-              >
-                {(lastRun.score ?? 0) >= META.passing_score ? 'WOULD PASS' : 'WOULD NOT PASS'}
-              </div>
-            </div>
-            {lastRun.byDomain && (
-              <div className="grid lg:grid-cols-3 gap-2 mt-4">
-                {Object.entries(lastRun.byDomain).map(([d, r]) => {
-                  const pct = Math.round((r.correct / r.total) * 100)
-                  return (
-                    <div key={d} className="border border-line rounded-lg p-2">
-                      <div className="text-xs font-mono text-ink-mute">Domain {d}</div>
-                      <div className="text-sm text-ink">{r.correct}/{r.total} · {pct}%</div>
-                      <div className="h-1.5 bg-bg-3 rounded-full mt-1 overflow-hidden">
-                        <div
-                          className={`h-full ${pct >= 70 ? 'bg-good' : pct >= 50 ? 'bg-warn' : 'bg-bad'}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        {lastRun?.finishedAt && <MockResults key={lastRun.startedAt} run={lastRun} focusOnMount={justSubmitted} />}
       </div>
     )
   }
@@ -170,6 +141,7 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
   const ss = Math.floor((remaining % 60000) / 1000)
   const isLast = idx === questions.length - 1
   const answered = Object.keys(active.answers).length
+  const flaggedCount = Object.keys(active.flagged ?? {}).length
 
   if (remaining <= 0) {
     setTimeout(finishMock, 0)
@@ -204,6 +176,8 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
           mode="mock"
           initialAnswer={active.answers[current.id]}
           onAnswer={(qid, given) => submitAnswer(qid, given)}
+          onFlag={toggleFlag}
+          flagged={!!active.flagged?.[current.id]}
           onNext={() => setIdx((i) => Math.min(i + 1, questions.length - 1))}
           onPrev={() => setIdx((i) => Math.max(i - 1, 0))}
           canPrev={idx > 0}
@@ -214,11 +188,13 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
         <div className="text-xs text-ink-mute">Jump:</div>
         {questions.map((q, i) => {
           const isAnswered = !!active.answers[q.id]
+          const isFlagged = !!active.flagged?.[q.id]
           return (
             <button
               key={q.id}
               onClick={() => setIdx(i)}
-              className={`w-8 h-8 rounded-md text-xs font-mono ${
+              aria-label={`Question ${i + 1}${isAnswered ? ', answered' : ''}${isFlagged ? ', flagged' : ''}`}
+              className={`relative w-8 h-8 rounded-md text-xs font-mono ${
                 i === idx
                   ? 'bg-accent text-bg'
                   : isAnswered
@@ -227,6 +203,14 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
               }`}
             >
               {i + 1}
+              {isFlagged && (
+                <span
+                  aria-hidden
+                  className="absolute -top-1.5 -right-1.5 grid place-items-center w-4 h-4 rounded-full bg-accent-2 text-[9px] text-white"
+                >
+                  ⚑
+                </span>
+              )}
             </button>
           )
         })}
@@ -237,7 +221,7 @@ export default function MockExamPage({ state, setState }: MockExamPageProps) {
           <h2 className="font-display font-semibold text-ink">Ready to submit?</h2>
           <p className="text-sm text-ink-dim mt-1">
             You have answered {answered} of {questions.length}. Unanswered questions count as
-            incorrect.
+            incorrect.{flaggedCount > 0 && ` You flagged ${flaggedCount} to revisit.`}
           </p>
           <button onClick={finishMock} className="btn btn-primary mt-3">
             Submit and see score

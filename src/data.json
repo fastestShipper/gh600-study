@@ -337,7 +337,7 @@
                 "Considerations (assumptions, constraints, risks, mitigations)",
                 "Not Included (deferred features)"
               ],
-              "correct": "Overview -> Technical Approach -> Implementation Plan -> Considerations -> Not Included",
+              "correct": "Overview (problem, success criteria, personas) -> Technical Approach (architecture, APIs, data, trade-offs) -> Implementation Plan (phases, tasks, S/M/L sizes, dependencies) -> Considerations (assumptions, constraints, risks, mitigations) -> Not Included (deferred features)",
               "explanation": "The reference template flows from problem framing, to design, to phased breakdown, to risks, and finally to explicit out-of-scope items. 'Not Included' is last because it depends on the rest.",
               "domain": "1.2",
               "difficulty": "medium"
@@ -679,12 +679,12 @@
               "stem": "Place the steps in order to configure an MCP registry at the organization level.",
               "options": [
                 "Open organization Settings",
-                "Navigate to Copilot -> Policies",
+                "Navigate to Copilot > Policies",
                 "Enable MCP servers",
                 "Enter the registry base URL (no /v0.1/servers suffix)",
                 "Choose the allow list policy (Allow all or Registry only)"
               ],
-              "correct": "Open organization Settings -> Navigate to Copilot -> Policies -> Enable MCP servers -> Enter the registry base URL (no /v0.1/servers suffix) -> Choose the allow list policy (Allow all or Registry only)",
+              "correct": "Open organization Settings -> Navigate to Copilot > Policies -> Enable MCP servers -> Enter the registry base URL (no /v0.1/servers suffix) -> Choose the allow list policy (Allow all or Registry only)",
               "explanation": "This is the documented org-level path. The registry must be a BASE URL; appending /v0.1/servers causes errors because the client constructs the full path.",
               "domain": "2.2",
               "difficulty": "medium"

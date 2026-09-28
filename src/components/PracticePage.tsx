@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AppState, FlatQuestion } from '../types'
 import { ALL_QUESTIONS, DOMAINS, shuffle } from '../lib/exam'
@@ -11,28 +11,42 @@ interface PracticePageProps {
 
 type DomainFilter = 'all' | number
 type ModeFilter = 'all' | 'unseen' | 'wrong' | 'flagged'
+interface Filters {
+  domain: DomainFilter
+  mode: ModeFilter
+  shuffled: boolean
+}
+
+function buildPool({ domain, mode, shuffled }: Filters, state: AppState): FlatQuestion[] {
+  let p = ALL_QUESTIONS
+  if (domain !== 'all') p = p.filter((q) => q.domainId === domain)
+  if (mode === 'unseen') {
+    p = p.filter((q) => !state.questionAttempts[q.id]?.length)
+  } else if (mode === 'wrong') {
+    p = p.filter((q) => {
+      const last = state.questionAttempts[q.id]?.slice(-1)[0]
+      return last && !last.correct
+    })
+  } else if (mode === 'flagged') {
+    p = p.filter((q) => state.flagged[q.id])
+  }
+  return shuffled ? shuffle(p) : p
+}
 
 export default function PracticePage({ state, setState }: PracticePageProps) {
-  const [domain, setDomain] = useState<DomainFilter>('all')
-  const [modeFilter, setModeFilter] = useState<ModeFilter>('all')
-  const [shuffled, setShuffled] = useState(false)
+  const [filters, setFilters] = useState<Filters>({ domain: 'all', mode: 'all', shuffled: false })
+  // Snapshot taken when a filter changes, not re-derived from progress: answering or flagging
+  // must not reshuffle or shrink the pool under the question that is on screen.
+  const [pool, setPool] = useState(() => buildPool(filters, state))
   const [idx, setIdx] = useState(0)
+  const { domain, mode: modeFilter, shuffled } = filters
 
-  const pool: FlatQuestion[] = useMemo(() => {
-    let p = ALL_QUESTIONS
-    if (domain !== 'all') p = p.filter((q) => q.domainId === domain)
-    if (modeFilter === 'unseen') {
-      p = p.filter((q) => !state.questionAttempts[q.id]?.length)
-    } else if (modeFilter === 'wrong') {
-      p = p.filter((q) => {
-        const last = state.questionAttempts[q.id]?.slice(-1)[0]
-        return last && !last.correct
-      })
-    } else if (modeFilter === 'flagged') {
-      p = p.filter((q) => state.flagged[q.id])
-    }
-    return shuffled ? shuffle(p) : p
-  }, [domain, modeFilter, shuffled, state.questionAttempts, state.flagged])
+  const applyFilters = (patch: Partial<Filters>) => {
+    const next = { ...filters, ...patch }
+    setFilters(next)
+    setPool(buildPool(next, state))
+    setIdx(0)
+  }
 
   const current = pool[idx]
 
@@ -82,14 +96,14 @@ export default function PracticePage({ state, setState }: PracticePageProps) {
             Domain
           </label>
           <div className="flex flex-wrap gap-1.5">
-            <FilterPill active={domain === 'all'} onClick={() => { setDomain('all'); setIdx(0) }}>
+            <FilterPill active={domain === 'all'} onClick={() => applyFilters({ domain: 'all' })}>
               All
             </FilterPill>
             {DOMAINS.map((d) => (
               <FilterPill
                 key={d.domain_id}
                 active={domain === d.domain_id}
-                onClick={() => { setDomain(d.domain_id); setIdx(0) }}
+                onClick={() => applyFilters({ domain: d.domain_id })}
               >
                 D{d.domain_id}
               </FilterPill>
@@ -101,16 +115,16 @@ export default function PracticePage({ state, setState }: PracticePageProps) {
             Mode
           </label>
           <div className="flex flex-wrap gap-1.5">
-            <FilterPill active={modeFilter === 'all'} onClick={() => { setModeFilter('all'); setIdx(0) }}>
+            <FilterPill active={modeFilter === 'all'} onClick={() => applyFilters({ mode: 'all' })}>
               All
             </FilterPill>
-            <FilterPill active={modeFilter === 'unseen'} onClick={() => { setModeFilter('unseen'); setIdx(0) }}>
+            <FilterPill active={modeFilter === 'unseen'} onClick={() => applyFilters({ mode: 'unseen' })}>
               Unseen
             </FilterPill>
-            <FilterPill active={modeFilter === 'wrong'} onClick={() => { setModeFilter('wrong'); setIdx(0) }}>
+            <FilterPill active={modeFilter === 'wrong'} onClick={() => applyFilters({ mode: 'wrong' })}>
               Missed
             </FilterPill>
-            <FilterPill active={modeFilter === 'flagged'} onClick={() => { setModeFilter('flagged'); setIdx(0) }}>
+            <FilterPill active={modeFilter === 'flagged'} onClick={() => applyFilters({ mode: 'flagged' })}>
               ⚑ Flagged
             </FilterPill>
           </div>
@@ -120,10 +134,10 @@ export default function PracticePage({ state, setState }: PracticePageProps) {
             Order
           </label>
           <div className="flex flex-wrap gap-1.5">
-            <FilterPill active={!shuffled} onClick={() => { setShuffled(false); setIdx(0) }}>
+            <FilterPill active={!shuffled} onClick={() => applyFilters({ shuffled: false })}>
               By domain
             </FilterPill>
-            <FilterPill active={shuffled} onClick={() => { setShuffled(true); setIdx(0) }}>
+            <FilterPill active={shuffled} onClick={() => applyFilters({ shuffled: true })}>
               Shuffle
             </FilterPill>
           </div>
@@ -173,6 +187,7 @@ function FilterPill({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`px-3 py-1.5 rounded-lg border text-xs transition ${
         active
           ? 'border-accent bg-accent/10 text-ink'
